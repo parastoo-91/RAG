@@ -1,0 +1,6 @@
+data
+.env
+chroma
+.venv
+t.py
+tests
