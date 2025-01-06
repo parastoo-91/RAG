@@ -105,6 +105,7 @@ Insturctions:
 )
 
 
+
     chain = prompt_template | llm | StrOutputParser()
 
 
@@ -116,9 +117,7 @@ Insturctions:
         if st.button('restart conversation'):
             st.session_state["chat_history"] = []
 
-
-
-    #initialize chat history
+    # initialize chat history
     if "chat_history" not in st.session_state:
         st.session_state["chat_history"] = []
 

@@ -2,6 +2,7 @@
 .streamlit.sh
 .git
 .venv
+<<<<<<< HEAD
 .gitignore
 *.pyc
 *.pyo
@@ -9,3 +10,7 @@
 tf
 tests
 *__pycache__*
+=======
+t.py
+tests
+>>>>>>> 6a73721c995db750748116b1ae81e1741eebce40
