@@ -3,6 +3,7 @@
 Following enviorment variables are required and to be defined in the .env file: 
 
 - EMBEDDING_MODEL: This defines the embedding model that you want to use from Ollama. Please make sure that you have pulled the model from Ollama. You can find a list of embedding models [HERE](https://ollama.com/search?c=embedding). *Example Value ->* "mxbai-embed-large" 
+- LLM_MODEL: This specifices the LLM Model that you want to use inside of your application. Be sure that your previously pulled the defined model to ollama. *Example Value: ->* llama3.2:3b
 - OLLAMA_HOST: This defines the host of your Ollama instance. Per default it is "127.0.0.1:11434", but after changing the OLLAMA_HOST enviornment variable of your system it should point to your localhost, otherwise the Docker Container will no be able to access it. Further information on the same can be found [HERE](https://www.restack.io/p/ollama-answer-bind-to-0-0-0-0-cat-ai). *Example Value ->* "192.168.0.27:11434" 
 - CHROMADB_HTTPS_ADDRESS: This is the address of your Chroma Docker container, that is used for the ChromaHttpClient within the streamlit App. When running the container (via docker run) for example with --port 8000:8000 the database will be exposed to your localhost and port that you defined in afore mentioned argument.  *Example Value ->* "192.168.0.27"
 - CHROMADB_PORT: The port of the host on which the ChromaDb is running. *Example Value ->* 8000
@@ -29,7 +30,9 @@ docker build -t thesis_rag .
 
 docker run  --env=EMBEDDING_MODEL=mxbai-embed-large --env=OLLAMA_HOST=http://192.168.0.27:11434 --env=CHROMADB_HTTPS_ADDRESS=192.168.0.27 --env=CHROMADB_PORT=8000 --env=CHROMADB_COLLECTION=scientific_papers --env=RETRIEVER_K_NUMBER=20 --env=RETRIEVER_RELEVANCE_SCORE=0.2 --env=LLM_MODEL=llama3.2:3b --mount type=bind,src=F:\Dokumente\rag_logs,dst=/thesis_rag/logs  -p 8504:8504 -d rag_thesis:latest
 
-Important: Be sure that you provide the correct path for a bind mount to make the conversation logs available externally of the docker container. For that provide the folder path on your host machine, to which you want the logs to be written in the src argument, and specify the folder inside of the docker container. The logs folder will be inside of the folder, which is named like the name of the image that you created in the docker build command. Hence /--YOUR DOCKER IMAGE NAME--/logs
+Important: 
+- Be sure that you provide the correct path for a bind mount to make the conversation logs available externally of the docker container. For that provide the folder path on your host machine, to which you want the logs to be written in the src argument, and specify the folder inside of the docker container. The logs folder will be inside of the folder, which is named like the name of the image that you created in the docker build command. Hence /--YOUR DOCKER IMAGE NAME--/logs
+- Ensure that your ollama instance has the specified embedding and specified llm model installed. A list of supported models can be found on [the ollama website](https://ollama.com/search)
 
 **Prequisites**
 - Make sure to set OLLAMA_HOST environment variable to 0.0.0.0, otherwise the dockercontainer will not be able to access the ollama service
