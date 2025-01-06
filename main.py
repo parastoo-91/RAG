@@ -118,7 +118,7 @@ Contextual data:
 
 Insturctions: 
 - Contextual data comes in the form of a langchain document with Title and Author in the metadata. 
-- In your answer stay as close as possible to the wording of the contextual data and cite it in APA 6 if possible             
+- In your answer stay as close as possible to the wording of the contextual data and cite it in APA 6 style         
 - If you are unable to answer the question by the provided contextual data, reply 'I dont know - reach out to your professor for further information or check a different topic'
 - Make use of Markdown to highlight parts that are important for the students
          """),
@@ -177,7 +177,9 @@ Insturctions:
             ai_response = st.write_stream(chain.stream({"input": prompt,"context":context,  "chat_history": st.session_state["chat_history"]}))
 
         st.session_state["chat_history"].append(AIMessage(content=ai_response))
-        write_logs(log_location='./logs',conversation_id=st.session_state['conversation_id'],chat_history=st.session_state["chat_history"])
+        #Create log version of the chat that also includes the selected documents and the selected topics of the users, to better contextualise the logs. 
+        log_chat_history= {"selected_topics":selected_topic,"selected_documents":selected_documents,"chat":st.session_state["chat_history"]}
+        write_logs(log_location='./logs',conversation_id=st.session_state['conversation_id'],chat_history=log_chat_history)
 
 
 
