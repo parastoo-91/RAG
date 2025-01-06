@@ -58,7 +58,7 @@ def retriever(vector_store:Chroma, prompt: str,k_number:int,score_threshold:floa
 
 def main():
 
-    llm = Ollama(model="llama3.2:3b",base_url=OLLAMA_HOST)
+    llm = Ollama(model=LLM_MODEL,base_url=OLLAMA_HOST)
     #llm = ChatOpenAI(api_key=OPENAI_API_KEY,model_name=LLM_MODEL)
     embeddings = OllamaEmbeddings(
         #api_key=OPENAI_API_KEY,
