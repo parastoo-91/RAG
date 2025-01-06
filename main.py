@@ -8,6 +8,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 import os
+import uuid
 
 
 #Provide Environment Variables
@@ -55,7 +56,27 @@ def retriever(vector_store:Chroma, prompt: str,k_number:int,score_threshold:floa
 
 
 
+def write_logs(log_location:str, conversation_id:str,chat_history:list)->None:
+    #Check if logs folder exists
+    if os.path.exists(log_location)==False:
+        os.mkdir(log_location)
+    else:
+        pass
+
+    file_path = fr"{log_location}/{conversation_id}.txt"
+    #create file if it doesn't exist and open it in (over)write mode [it overwrites the file if it already exists]
+    log_file = open(file_path,'w+')
+    log_file.write(str(chat_history))
+    log_file.close()
+
+    return None
+
+
+
+
 def main():
+
+
 
     llm = Ollama(model=LLM_MODEL,base_url=OLLAMA_HOST)
     #llm = ChatOpenAI(api_key=OPENAI_API_KEY,model_name=LLM_MODEL)
@@ -76,7 +97,10 @@ def main():
     collection_name=collection_name,
     embedding_function= embeddings
 )
-    
+    #Check if a conversation ID exists, else create new one
+    if "conversation_id" not in st.session_state:
+        st.session_state.conversation_id = uuid.uuid4()
+
     #retriever = vector_store.as_retriever()
 
     st.set_page_config(page_title="Research Assistant",
@@ -114,7 +138,10 @@ Insturctions:
         st.subheader('Document Selection (optional)')
         selected_documents = st.multiselect(label="Select one (or multiple) topics that you would like to investigate",options=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}),default=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}), help="Topics that you select contain multiple documents. Hence questions that you ask will take place in the defined context", placeholder="Select a topic to chat with")
         if st.button('restart conversation'):
+            #Set new conversation id and empty existing conversation history
+            st.session_state.conversation_id = uuid.uuid4()
             st.session_state["chat_history"] = []
+
 
     # initialize chat history
     if "chat_history" not in st.session_state:
@@ -150,6 +177,7 @@ Insturctions:
             ai_response = st.write_stream(chain.stream({"input": prompt,"context":context,  "chat_history": st.session_state["chat_history"]}))
 
         st.session_state["chat_history"].append(AIMessage(content=ai_response))
+        write_logs(log_location='./logs',conversation_id=st.session_state['conversation_id'],chat_history=st.session_state["chat_history"])
 
 
 

@@ -27,7 +27,9 @@ docker build -t thesis_rag .
 
 **Run the docker image py passing the env variables**
 
-docker run  --env=EMBEDDING_MODEL=mxbai-embed-large --env=OLLAMA_HOST=http://192.168.0.27:11434 --env=CHROMADB_HTTPS_ADDRESS=192.168.0.27 --env=CHROMADB_PORT=8000 --env=CHROMADB_COLLECTION=scientific_papers --env=RETRIEVER_K_NUMBER=20 --env=RETRIEVER_RELEVANCE_SCORE=0.2   -p 8504:8504 -d rag_thesis:latest
+docker run  --env=EMBEDDING_MODEL=mxbai-embed-large --env=OLLAMA_HOST=http://192.168.0.27:11434 --env=CHROMADB_HTTPS_ADDRESS=192.168.0.27 --env=CHROMADB_PORT=8000 --env=CHROMADB_COLLECTION=scientific_papers --env=RETRIEVER_K_NUMBER=20 --env=RETRIEVER_RELEVANCE_SCORE=0.2 --env=LLM_MODEL=llama3.2:3b --mount type=bind,src=F:\Dokumente\rag_logs,dst=/thesis_rag/logs  -p 8504:8504 -d rag_thesis:latest
+
+Important: Be sure that you provide the correct path for a bind mount to make the conversation logs available externally of the docker container. For that provide the folder path on your host machine, to which you want the logs to be written in the src argument, and specify the folder inside of the docker container. The logs folder will be inside of the folder, which is named like the name of the image that you created in the docker build command. Hence /--YOUR DOCKER IMAGE NAME--/logs
 
 **Prequisites**
 - Make sure to set OLLAMA_HOST environment variable to 0.0.0.0, otherwise the dockercontainer will not be able to access the ollama service
