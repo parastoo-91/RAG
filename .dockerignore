@@ -6,7 +6,4 @@
 *.pyc
 *.pyo
 *.pyd
-tf
-tests
 .env
-*__pycache__*

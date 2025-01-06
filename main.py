@@ -1,96 +1,118 @@
 import chromadb
-import os
-import ollama
 from dotenv import load_dotenv
-from utils.file_loader import chunker
-from utils.vectorizer import add_documents
 import streamlit as st
-from langchain.memory import ConversationBufferMemory
 from langchain_community.llms import Ollama
-from langchain_core.messages import HumanMessage, AIMessage,SystemMessage
+from langchain_openai import ChatOpenAI,OpenAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
+from langchain_chroma import Chroma
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.output_parsers import StrOutputParser
+import os
+
+
+#Provide Environment Variables
+load_dotenv()
+CHROMADB_HTTPS_ADDRESS=os.getenv('CHROMADB_HTTPS_ADDRESS')
+CHROMADB_PORT=int(os.getenv('CHROMADB_PORT'))
+CHROMADB_COLLECTION=os.getenv('CHROMADB_COLLECTION')
+EMBEDDING_MODEL=os.getenv('EMBEDDING_MODEL')
+LLM_MODEL=os.getenv('LLM_MODEL')
+RETRIEVER_K_NUMBER=int(os.getenv('RETRIEVER_K_NUMBER'))
+RETRIEVER_RELEVANCE_SCORE=float(os.getenv('RETRIEVER_RELEVANCE_SCORE'))
+OLLAMA_HOST=os.getenv('OLLAMA_HOST')
 
 
 
-
-def get_collection(client:chromadb.PersistentClient,collection_name:str) -> chromadb.Collection:
+def get_collection(client,collection_name:str) -> chromadb.Collection:
     collection = client.get_or_create_collection(name=collection_name)
     return collection
 
-def get_pdf_titles(collection:chromadb.Collection) ->list:
-    doc_metadata = collection.get(include=["metadatas"])["metadatas"]
-    doc_titles = list(set(list(map(lambda x: x['Title'],doc_metadata))))
-    return doc_titles
 
-def process_files(pdf_file_path:str, collection:chromadb.Collection) -> None:
-    to_process_list = os.listdir(pdf_file_path)
-    for d in to_process_list: 
-        chunk = chunker(ChunkSize=75000,ChunkOverlap=600)
-        doc_list = chunk.pdf_load(FilePath=  pdf_file_path  + "/" + d )
-        add_documents(doc_list=doc_list,model=os.getenv("EMBEDDING_MODEL"),collection=collection)
 
-def retriever(prompt:str,doc_title:str,collection:chromadb.Collection, n_results:int)->list:
-    response = ollama.embeddings(
-    prompt=prompt,
-    model=os.getenv("EMBEDDING_MODEL")
-)
-    results = collection.query(
-    query_embeddings=[response["embedding"]],
-    n_results=n_results,
-    where={"Title":doc_title}
-)
-    docs = results['documents'][0]
-    return docs
+def get_metadata(collection:chromadb.Collection,metadata_field:str,**kwargs) ->list:
+
+    if kwargs.get('filter_dict') == None:
+        doc_metadata = collection.get(include=["metadatas"])["metadatas"]
+    else:
+        filter_dict=kwargs.get('filter_dict')
+        if filter_dict == {'Topic':{'$in':[]}}:
+            doc_metadata = collection.get(include=["metadatas"])["metadatas"]
+        else:
+            doc_metadata = collection.get(include=["metadatas"],where=filter_dict)["metadatas"]
+
+    metadata_values = list(set(list(map(lambda x: x[metadata_field],doc_metadata))))
+    return metadata_values
+
+def retriever(vector_store:Chroma, prompt: str,k_number:int,score_threshold:float,filter_dict:dict) -> list:
+    # Perform the vector search query on the Chroma vector store
+    results = vector_store.similarity_search_with_relevance_scores(
+        query=prompt,
+        k=k_number,
+        score_threshold = score_threshold,
+        filter = filter_dict
+   )
+    return results
+
+
 
 def main():
-    llm = Ollama(model="llama3")
 
+    llm = Ollama(model="llama3.2:3b",base_url=OLLAMA_HOST)
+    #llm = ChatOpenAI(api_key=OPENAI_API_KEY,model_name=LLM_MODEL)
+    embeddings = OllamaEmbeddings(
+        #api_key=OPENAI_API_KEY,
+        model=EMBEDDING_MODEL,
+        base_url=OLLAMA_HOST
+)   
+    
+    chroma_client = chromadb.HttpClient(
+        host=CHROMADB_HTTPS_ADDRESS,
+        port=CHROMADB_PORT
+        )
+    collection_name = CHROMADB_COLLECTION
+    
+    vector_store = Chroma(
+    client=chroma_client,
+    collection_name=collection_name,
+    embedding_function= embeddings
+)
+    
+    #retriever = vector_store.as_retriever()
 
-    load_dotenv()
-    pdf_file_path = "data/pdf/00_to_process/"
-    chroma_client = chromadb.PersistentClient()
-    collection_name = "pdf_collection"
-
-    st.set_page_config(page_title="Chat with your scientific paper",
+    st.set_page_config(page_title="Research Assistant",
                        page_icon=":books:")
-    st.header("Chat with your scientific paper :books:")
+    st.header("Chat with your Scientific Papers :books:")
+
     collection = get_collection(client=chroma_client,collection_name=collection_name)
 
     prompt_template = ChatPromptTemplate.from_messages(
     [
-
-       # SystemMessage(content= """
-       #               You are a scientific research assistant that is here to help university students with their homework. Your Name is Parastoo. 
-#
-       #               Contextual data: 
-       #               {context}
-#
-       #               In your answer stay as close as possible to the wording of the contextual data, if possible quote it. If you are unable to answer the question by the provided contextual data, reply 'I dont know'. Return the contextual data before your response. 
-#
-       #               """),
        ("system", """ 
-You are a scientific research assistant that is here to help university students with their homework. Your Name is Parastoo. 
+You are a scientific research assistant that is here to help university students with their homework. Your Name is Prastoo. 
 Contextual data: 
 {context}
-In your answer stay as close as possible to the wording of the contextual data, if possible quote it. If you are unable to answer the question by the provided contextual data, reply 'I dont know'. Return the contextual data before your response. The contextual data stems from a scientific research paper called {doc_title}.
- """),
+
+Insturctions: 
+- Contextual data comes in the form of a langchain document with Title and Author in the metadata. 
+- In your answer stay as close as possible to the wording of the contextual data and cite it in APA 6 if possible             
+- If you are unable to answer the question by the provided contextual data, reply 'I dont know - reach out to your professor for further information or check a different topic'
+- Make use of Markdown to highlight parts that are important for the students
+         """),
         MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "Student Question:{input}"),
-       # ("Context", "Context provided from external documents:{context}")
-        
+        ("human", "Student Question:{input}"),  
     ]
 )
 
 
-    chain = prompt_template | llm 
+    chain = prompt_template | llm | StrOutputParser()
 
 
     with st.sidebar:
-        st.subheader('Document Selection')
-        document_title = st.selectbox("Select the document you would like to chat with",get_pdf_titles(collection=collection),index=None, placeholder="Select a document to chat with")
-        if st.button('Process newly added files'):
-            with st.spinner("Processing"):
-                process_files(pdf_file_path=pdf_file_path,collection = collection)
+        st.subheader('Topic Selection')
+        selected_topic = st.multiselect(label="Select one (or multiple) topics that you would like to investigate",options=get_metadata(collection=collection,metadata_field="Topic"),default=get_metadata(collection=collection,metadata_field="Topic")[0], help="Topics that you select contain multiple documents. Hence questions that you ask will take place in the defined context", placeholder="Select a topic to chat with")
+        st.subheader('Document Selection (optional)')
+        selected_documents = st.multiselect(label="Select one (or multiple) topics that you would like to investigate",options=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}),default=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}), help="Topics that you select contain multiple documents. Hence questions that you ask will take place in the defined context", placeholder="Select a topic to chat with")
         if st.button('restart conversation'):
             st.session_state["chat_history"] = []
 
@@ -100,23 +122,37 @@ In your answer stay as close as possible to the wording of the contextual data, 
     if "chat_history" not in st.session_state:
         st.session_state["chat_history"] = []
 
+    for message in st.session_state["chat_history"]:
+        if type(message) is HumanMessage:
+            with st.chat_message("user"):
+                st.markdown(message.content)
+        elif type(message) is AIMessage:
+            with st.chat_message("assistant"):
+                st.markdown(message.content)
+        else: 
+            with st.chat_message("assistant"):
+                st.markdown("oops")
 
     if prompt := st.chat_input('Ask your question about this paper'):
-        context = retriever(prompt=prompt,doc_title=document_title,collection=collection,n_results=3)
-        # add latest message to history in format {role, content}
-        response = chain.invoke({"input": prompt,"context":context, "doc_title":document_title, "chat_history": st.session_state["chat_history"]})
-        print(context)
-        st.session_state["chat_history"].append(HumanMessage(content=prompt))
-        st.session_state["chat_history"].append(AIMessage(content=response))
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        if len(selected_topic) > 0 and len(selected_documents) > 0:
+            filter_dict={"$and":[{"Topic":{"$in":selected_topic}},{"Title":{"$in":selected_documents}}]}
+        elif len(selected_topic) > 0 and len(selected_documents) == 0:
+            filter_dict={"Topic":{"$in":selected_topic}}
+        elif len(selected_topic) == 0 and len(selected_documents) > 0:
+            filter_dict={"Title":{"$in":selected_documents}}
 
-        for message in st.session_state["chat_history"]:
-            if type(message) is HumanMessage:
-                with st.chat_message("user"):
-                    st.markdown(message.content)
-            else: 
-                with st.chat_message("assistant"):
-                    st.markdown(message.content)
-        
+                    
+        context = retriever(vector_store=vector_store,prompt=prompt,k_number=RETRIEVER_K_NUMBER,score_threshold=RETRIEVER_RELEVANCE_SCORE,filter_dict=filter_dict)
+        st.session_state["chat_history"].append(HumanMessage(content=prompt))
+         
+
+        with st.chat_message("assistant"):
+            ai_response = st.write_stream(chain.stream({"input": prompt,"context":context,  "chat_history": st.session_state["chat_history"]}))
+
+        st.session_state["chat_history"].append(AIMessage(content=ai_response))
+
 
 
 if __name__ == '__main__':
