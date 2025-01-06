@@ -2,7 +2,6 @@ import chromadb
 from dotenv import load_dotenv
 import streamlit as st
 from langchain_community.llms import Ollama
-from langchain_openai import ChatOpenAI,OpenAIEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 from langchain_core.messages import HumanMessage, AIMessage
