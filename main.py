@@ -136,11 +136,12 @@ Insturctions:
         st.subheader('Topic Selection')
         selected_topic = st.multiselect(label="Select one (or multiple) topics that you would like to investigate",options=get_metadata(collection=collection,metadata_field="Topic"),default=get_metadata(collection=collection,metadata_field="Topic")[0], help="Topics that you select contain multiple documents. Hence questions that you ask will take place in the defined context", placeholder="Select a topic to chat with")
         st.subheader('Document Selection (optional)')
-        selected_documents = st.multiselect(label="Select one (or multiple) topics that you would like to investigate",options=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}),default=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}), help="Topics that you select contain multiple documents. Hence questions that you ask will take place in the defined context", placeholder="Select a topic to chat with")
+        selected_documents = st.multiselect(label="Select one (or multiple) documents that you want to include in your conversation context",options=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}),default=get_metadata(collection=collection,metadata_field="Title",filter_dict={'Topic':{'$in':selected_topic}}), help="Documents that you have selected here will be taken into consideration by the LLM when you are asking a question.", placeholder="Select a topic to chat with")
         if st.button('restart conversation'):
             #Set new conversation id and empty existing conversation history
             st.session_state.conversation_id = uuid.uuid4()
             st.session_state["chat_history"] = []
+        st.write(f"Chat is run by {LLM_MODEL}")
 
 
     # initialize chat history
