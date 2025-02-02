@@ -1,12 +1,14 @@
+from typing import Iterable
 import chromadb
 from dotenv import load_dotenv
 import streamlit as st
 from langchain_community.llms import Ollama
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, AIMessageChunk
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnableGenerator
 import os
 import uuid
 
@@ -72,7 +74,22 @@ def write_logs(log_location:str, conversation_id:str,chat_history:list)->None:
     return None
 
 
+def streaming_parse(chunks: str) -> Iterable[str]:
+    # for deepseek to filter out the <think> abc </think> sections of the stream of chunks
+    fin_answer = r''
+    start_wr=False
+    for chunk in chunks:
+        eof_think=r'</think>'
+        if start_wr==True:
+            return_val=chunk
+        elif chunk==eof_think:
+            start_wr=True
+            return_val=''
+        else:
+            continue
+        yield return_val
 
+streaming_parse_runnable = RunnableGenerator(streaming_parse)
 
 def main():
 
@@ -117,7 +134,7 @@ Contextual data:
 {context}
 
 Insturctions: 
-- Contextual data comes in the form of a langchain document with Title and Author in the metadata. 
+- Contextual data comes in the form of a langchain document with Title and Author in the metadata. page_content are the text chunks extracted from the documents.  
 - In your answer stay as close as possible to the wording of the contextual data and cite it in APA 6 style         
 - If you are unable to answer the question by the provided contextual data, reply 'I dont know - reach out to your professor for further information or check a different topic'
 - Make use of Markdown to highlight parts that are important for the students
@@ -129,7 +146,8 @@ Insturctions:
 
 
 
-    chain = prompt_template | llm | StrOutputParser()
+    chain = prompt_template | llm | streaming_parse_runnable
+    #StrOutputParser()
 
 
     with st.sidebar:
@@ -171,6 +189,7 @@ Insturctions:
 
                     
         context = retriever(vector_store=vector_store,prompt=prompt,k_number=RETRIEVER_K_NUMBER,score_threshold=RETRIEVER_RELEVANCE_SCORE,filter_dict=filter_dict)
+        print(context)
         st.session_state["chat_history"].append(HumanMessage(content=prompt))
          
 
