@@ -7,3 +7,4 @@ langchain-chroma==0.1.4
 langchain-openai==0.2.9
 langchain-ollama==0.2.2
 chromadb==0.5.23
+flashrank==0.2.10
