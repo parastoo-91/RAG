@@ -5,6 +5,7 @@
 .gitignore
 *.pyc
 *.pyo
+logs
 *.pyd
 tf
 tests

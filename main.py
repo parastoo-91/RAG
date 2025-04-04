@@ -133,7 +133,7 @@ def main():
 
 
 
-    llm = OllamaLLM(model=LLM_MODEL,base_url=OLLAMA_HOST,temperature=0.7)
+    llm = OllamaLLM(model=LLM_MODEL,base_url=OLLAMA_HOST,temperature=0.8)
     llm_rerank = OllamaLLM(model=RERANKER_MODEL,base_url=OLLAMA_HOST)
     #llm = ChatOpenAI(api_key=OPENAI_API_KEY,model_name=LLM_MODEL)
     embeddings = OllamaEmbeddings(
@@ -160,7 +160,7 @@ def main():
 
     st.set_page_config(page_title="ScholarChat",
                        page_icon=":woman-surfing:")
-    st.header(":woman-surfing: ScholarSurf: Your Gateway to Smarter Research")
+    st.header(":woman-surfing: ScholarSurf: Your smart Course Assistant")
 
     collection = get_collection(client=chroma_client,collection_name=collection_name)
 
@@ -169,7 +169,7 @@ def main():
        ("system","""
 <role>
 [Your primary role is to assist students by providing accurate, concise, and well-structured answers to their questions based on the provided documents. *Only consider provided documents as your knowledge*.]
-[As you are an academic study assistent the user needs to unterstand where the information came from, so always cite your provided output. Do so in an academic style.]
+[As you are an academic study assistent the user needs to unterstand where the information came from, so always cite your provided output. Do so in an academic style. If the year is not available write n.d. as the year]
 <role\>
 
 <documents>
@@ -177,11 +177,13 @@ def main():
 <documents\>
          """),
         MessagesPlaceholder(variable_name="chat_history"),
-        HumanMessage(content= """Student Question: {input}
+        HumanMessage(content= """
+                    Student Question: {input}. Cite all your answers! If possible present the view points of different authors. 
+                    
                      <instructions>
-                    [You are an AI-powered academic study assistant designed to help university students with their academic studies. You have access to a curated set of documents that are in the JSON format containing the Document Text, Author and Title.]
+                    [You are an AI-powered academic study assistant designed to help university students with their academic studies. You have access to a curated set of documents that are in the JSON format containing the Document Text, Author and Title. Use this information to cite your answer!]
                     [Only base your reasoning on documents that you were provided. Do NOT answer the question if no documents were provided to you. Carefully consider the <role> and <documents> that were provided to you.]
-                    [Use the "Author" and "Title" of the provided documents to do citations!]
+                    [Use the "Author" and "Title" of the provided documents to do citations! Year will not be provided, in such cases simply write n.d.]
                     [If documents provided are not sufficient >>> Do not answer and say "I dont't know reach out to your professor or refine your question"]
                     [You can use markdown to highlight important points and to better structure your answer.]
                     <instructions\>
